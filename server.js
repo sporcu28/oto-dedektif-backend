@@ -19,12 +19,15 @@ app.use(express.json({ limit: '15mb' }));
 const GEMINI_API_KEY = process.env.GEMINI_KEY; 
 
 // --- SAĞLIK KONTROLÜ (Health Check) ---
-// Tarayıcıdan linke tıklandığında sunucun çalıştığını doğrular
 app.get('/', (req, res) => {
-    console.log("GET / isteği alındı.");
+    console.log("GET / isteği başarıyla alındı.");
     res.status(200).json({
         status: "Active",
         message: "Oto Dedektif API Başarıyla Çalışıyor!",
+        available_endpoints: {
+            analyze: "/api/analyze (POST)",
+            health: "/ (GET)"
+        },
         timestamp: new Date().toISOString()
     });
 });
@@ -37,6 +40,11 @@ app.post('/api/analyze', async (req, res) => {
 
         if (!imageBase64) {
             return res.status(400).json({ error: "Görüntü verisi alınamadı." });
+        }
+
+        if (!GEMINI_API_KEY) {
+            console.error("HATA: GEMINI_KEY tanımlanmamış!");
+            return res.status(500).json({ error: "Sunucu yapılandırma hatası (API Key eksik)." });
         }
 
         const prompt = `Sen profesyonel bir otomobil boya ve kaporta ekspertiz uzmanısın. 
@@ -76,23 +84,33 @@ app.post('/api/analyze', async (req, res) => {
             const resultText = data.candidates[0].content.parts[0].text;
             res.json(JSON.parse(resultText));
         } else {
-            console.error("Gemini API yanıt vermedi:", data);
+            console.error("Gemini API yanıt vermedi:", JSON.stringify(data));
             throw new Error("Yapay zeka yanıt oluşturamadı.");
         }
         
     } catch (error) {
-        console.error("Hata:", error.message);
-        res.status(500).json({ error: "Sunucu tarafında analiz hatası oluştu." });
+        console.error("Sunucu Hatası:", error.message);
+        res.status(500).json({ error: "Analiz sırasında sunucu hatası oluştu." });
     }
+});
+
+// --- 404 KORUYUCU (Bilinmeyen Rotalar İçin) ---
+app.use((req, res) => {
+    console.warn(`404 Hatası: Kullanıcı geçersiz bir rotaya gitti: ${req.originalUrl}`);
+    res.status(404).json({
+        error: "Bulunamadı",
+        message: "İstediğiniz adres bu sunucuda mevcut değil.",
+        hint: "Sadece '/' (GET) ve '/api/analyze' (POST) adresleri mevcuttur."
+    });
 });
 
 // Sunucuyu Başlat
 const PORT = process.env.PORT || 3001;
-// Render için 0.0.0.0 üzerinde dinlemek daha sağlıklıdır
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`-----------------------------------------`);
-    console.log(`Oto Dedektif Backend Hazır!`);
+    console.log(`Oto Dedektif Backend Aktif!`);
     console.log(`Port: ${PORT}`);
+    console.log(`Mod: Production`);
     console.log(`Zaman: ${new Date().toLocaleString()}`);
     console.log(`-----------------------------------------`);
 });
