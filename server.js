@@ -18,14 +18,20 @@ app.use(express.json({ limit: '15mb' }));
 // Render.com panelinden ayarlanacak olan API Anahtarı
 const GEMINI_API_KEY = process.env.GEMINI_KEY; 
 
-// --- YENİ EKLENEN KISIM (Cannot GET / hatasını düzeltir) ---
+// --- SAĞLIK KONTROLÜ (Health Check) ---
 // Tarayıcıdan linke tıklandığında sunucun çalıştığını doğrular
 app.get('/', (req, res) => {
-    res.status(200).send('Oto Dedektif API Başarıyla Çalışıyor! (Status: Active)');
+    console.log("GET / isteği alındı.");
+    res.status(200).json({
+        status: "Active",
+        message: "Oto Dedektif API Başarıyla Çalışıyor!",
+        timestamp: new Date().toISOString()
+    });
 });
 
 // Analiz İsteklerini Karşılayan Uç Nokta (Endpoint)
 app.post('/api/analyze', async (req, res) => {
+    console.log("POST /api/analyze isteği alındı.");
     try {
         const { imageBase64, part, mode, userId } = req.body;
 
@@ -70,6 +76,7 @@ app.post('/api/analyze', async (req, res) => {
             const resultText = data.candidates[0].content.parts[0].text;
             res.json(JSON.parse(resultText));
         } else {
+            console.error("Gemini API yanıt vermedi:", data);
             throw new Error("Yapay zeka yanıt oluşturamadı.");
         }
         
@@ -81,4 +88,11 @@ app.post('/api/analyze', async (req, res) => {
 
 // Sunucuyu Başlat
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Oto Dedektif Backend ${PORT} portunda hazır.`));
+// Render için 0.0.0.0 üzerinde dinlemek daha sağlıklıdır
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`-----------------------------------------`);
+    console.log(`Oto Dedektif Backend Hazır!`);
+    console.log(`Port: ${PORT}`);
+    console.log(`Zaman: ${new Date().toLocaleString()}`);
+    console.log(`-----------------------------------------`);
+});
