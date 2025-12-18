@@ -1,6 +1,6 @@
 /**
  * OTO DEDEKTİF PRO - BACKEND PROXY SERVER
- * Bu dosya Render.com üzerinde çalışacak ve API anahtarını gizli tutacaktır.
+ * Bu dosya Render.com üzerinde çalışır ve API anahtarını gizli tutacaktır.
  */
 
 const express = require('express');
@@ -12,11 +12,17 @@ const app = express();
 
 // Güvenlik ve CORS Ayarları
 app.use(helmet());
-app.use(cors()); // Mobil uygulamanın sunucuya bağlanmasına izin verir
-app.use(express.json({ limit: '15mb' })); // Fotoğraf verisi için limit
+app.use(cors()); 
+app.use(express.json({ limit: '15mb' }));
 
 // Render.com panelinden ayarlanacak olan API Anahtarı
 const GEMINI_API_KEY = process.env.GEMINI_KEY; 
+
+// --- YENİ EKLENEN KISIM (Cannot GET / hatasını düzeltir) ---
+// Tarayıcıdan linke tıklandığında sunucun çalıştığını doğrular
+app.get('/', (req, res) => {
+    res.status(200).send('Oto Dedektif API Başarıyla Çalışıyor! (Status: Active)');
+});
 
 // Analiz İsteklerini Karşılayan Uç Nokta (Endpoint)
 app.post('/api/analyze', async (req, res) => {
@@ -27,7 +33,6 @@ app.post('/api/analyze', async (req, res) => {
             return res.status(400).json({ error: "Görüntü verisi alınamadı." });
         }
 
-        // Yapay Zeka (AI) Talimatları
         const prompt = `Sen profesyonel bir otomobil boya ve kaporta ekspertiz uzmanısın. 
         Gelen görseldeki ${part} bölgesini ${mode} modunda analiz et. 
         Boya katmanındaki pigment dağılımını ve mikron farklarını incele.
@@ -53,7 +58,6 @@ app.post('/api/analyze', async (req, res) => {
             generationConfig: { responseMimeType: "application/json" }
         };
 
-        // Google Gemini API'sine istek gönder
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -64,7 +68,6 @@ app.post('/api/analyze', async (req, res) => {
         
         if (data.candidates && data.candidates[0]) {
             const resultText = data.candidates[0].content.parts[0].text;
-            // JSON yanıtını temizle ve uygulamaya gönder
             res.json(JSON.parse(resultText));
         } else {
             throw new Error("Yapay zeka yanıt oluşturamadı.");
